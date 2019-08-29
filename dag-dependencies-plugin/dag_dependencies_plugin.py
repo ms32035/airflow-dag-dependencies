@@ -10,7 +10,7 @@ from flask_appbuilder import BaseView, has_access, expose
 
 
 class DAGDependenciesView(BaseView):
-    dagbag = models.DagBag(settings.DAGS_FOLDER)
+    dagbag = None
     plugins_folder = conf.get("core", "plugins_folder")
     template_folder = os.path.join(plugins_folder, "dag-dependencies-plugin")
     route_base = "/"
@@ -34,8 +34,11 @@ class DAGDependenciesView(BaseView):
     def list(self):
         title = "DAG Dependencies"
 
+        if DAGDependenciesView.dagbag is None:
+            DAGDependenciesView.dagbag = models.DagBag(settings.DAGS_FOLDER)
+
         if datetime.utcnow() > self.last_refresh + timedelta(
-                seconds=self.refresh_interval
+            seconds=self.refresh_interval
         ):
             DAGDependenciesView.dagbag.collect_dags()
             self.nodes, self.edges = self._generate_graph()
