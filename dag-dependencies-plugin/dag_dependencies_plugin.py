@@ -8,10 +8,9 @@ from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from flask import render_template, request
 from flask_appbuilder import BaseView, has_access, expose
 
-dagbag = models.DagBag(settings.DAGS_FOLDER)
-
 
 class DAGDependenciesView(BaseView):
+    dagbag = models.DagBag(settings.DAGS_FOLDER)
     plugins_folder = conf.get("core", "plugins_folder")
     template_folder = os.path.join(plugins_folder, "dag-dependencies-plugin")
     route_base = "/"
@@ -36,9 +35,9 @@ class DAGDependenciesView(BaseView):
         title = "DAG Dependencies"
 
         if datetime.utcnow() > self.last_refresh + timedelta(
-            seconds=self.refresh_interval
+                seconds=self.refresh_interval
         ):
-            dagbag.collect_dags()
+            DAGDependenciesView.dagbag.collect_dags()
             self.nodes, self.edges = self._generate_graph()
             self.last_refresh = datetime.utcnow()
 
@@ -58,7 +57,7 @@ class DAGDependenciesView(BaseView):
         nodes = {}
         edges = []
 
-        for dag_id, dag in dagbag.dags.items():
+        for dag_id, dag in DAGDependenciesView.dagbag.dags.items():
             dag_node_id = "[d]" + dag_id
             nodes[dag_node_id] = DAGDependenciesView._node_dict(
                 dag_node_id, dag_id, "fill: rgb(232, 247, 228)"
