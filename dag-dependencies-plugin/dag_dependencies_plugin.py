@@ -61,38 +61,38 @@ class DAGDependenciesView(BaseView):
         edges = []
 
         for dag_id, dag in DAGDependenciesView.dagbag.dags.items():
-            dag_node_id = "[d]" + dag_id
+            dag_node_id = "d--" + dag_id
             nodes[dag_node_id] = DAGDependenciesView._node_dict(
                 dag_node_id, dag_id, "fill: rgb(232, 247, 228)"
             )
 
             for task in dag.tasks:
-                task_node_id = "[t]" + dag_id + "#" + task.task_id
+                task_node_id = "t--" + dag_id + "--" + task.task_id
                 if isinstance(task, TriggerDagRunOperator):
                     nodes[task_node_id] = DAGDependenciesView._node_dict(
                         task_node_id, task.task_id, "fill: rgb(255, 239, 235)"
                     )
 
                     edges.append({"u": dag_node_id, "v": task_node_id})
-                    edges.append({"u": task_node_id, "v": "[d]" + task.trigger_dag_id})
+                    edges.append({"u": task_node_id, "v": "d--" + task.trigger_dag_id})
                 elif isinstance(task, ExternalTaskSensor):
                     nodes[task_node_id] = DAGDependenciesView._node_dict(
                         task_node_id, task.task_id, "fill: rgb(230, 241, 242)"
                     )
 
                     edges.append({"u": task_node_id, "v": dag_node_id})
-                    edges.append({"u": "[d]" + task.external_dag_id, "v": task_node_id})
+                    edges.append({"u": "d--" + task.external_dag_id, "v": task_node_id})
 
             implicit = getattr(dag, "implicit_dependencies", None)
             if isinstance(implicit, list):
                 for dep in implicit:
-                    dep_node_id = "[i]" + dag_id + "#" + dep
+                    dep_node_id = "i--" + dag_id + "--" + dep
                     nodes[dep_node_id] = DAGDependenciesView._node_dict(
                         dep_node_id, "implicit", "fill: gold"
                     )
 
                     edges.append({"u": dep_node_id, "v": dag_node_id})
-                    edges.append({"u": "[d]" + dep, "v": dep_node_id})
+                    edges.append({"u": "d--" + dep, "v": dep_node_id})
 
         return list(nodes.values()), edges
 

@@ -81,24 +81,12 @@ limitations under the License.
 
     // Below variables are being used in dag.js
 
-
-
     var duration = 500;
-    var stateFocusMap = {
-        'success': false,
-        'running':false,
-        'failed':false,
-        'skipped': false,
-        'up_for_reschedule': false,
-        'up_for_retry': false,
-        'queued': false,
-        'no_status': false
-    };
 
     // Preparation of DagreD3 data structures
     var g = new dagreD3.graphlib.Graph().setGraph({
-        nodesep: 15,
-        ranksep: 15,
+        nodesep: 25,
+        ranksep: 50,
         rankdir: arrange,
     })
         .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
@@ -132,11 +120,11 @@ limitations under the License.
     // https://github.com/dagrejs/dagre-d3/issues/245
 
     setUpZoomSupport();
-    //inject_node_ids(tasks);
+    inject_node_ids(nodes);
 
     function highlight_nodes(nodes, color) {
         nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid).node().parentNode;
+            my_node = d3.select('#' + nodeid).node();
             d3.select(my_node).selectAll("rect").style("stroke", color) ;
         })
     }
@@ -213,21 +201,18 @@ limitations under the License.
             d3.select("g.zoom")
                 .transition()
                 .attr("transform", transform.toString());
+
             innerSvg.attr("transform", "translate(" + transform.translate + ")" +
                 "scale(1)");
         }
     });
 
 
-    // Injecting ids to be used for parent/child highlighting
-    // Separated from update_node_states since it must work even
-    // when there is no valid task instance available
-    function inject_node_ids(tasks) {
-        $.each(tasks, function(task_id, task) {
-            $('tspan').filter(function(index) { return $(this).text() === task_id; })
-                .parent().parent().parent()
-                .attr("id", task_id);
-        });
+    function inject_node_ids(nodes) {
+        $("g.nodes").children().each(function (index, element) {
+            element.setAttribute("id", nodes[index].id);
+            }
+        )
     }
 
     function clearFocus(){
