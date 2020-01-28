@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta
 
-from airflow import conf, models, settings
+from airflow import conf
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
@@ -15,9 +15,11 @@ class DAGDependenciesView(BaseView):
     template_folder = os.path.join(plugins_folder, "dag-dependencies-plugin")
     route_base = "/"
     refresh_interval = conf.getint(
-        "dag_dependencies_plugin", "refresh_interval", fallback=300
+        "dag_dependencies_plugin",
+        "refresh_interval",
+        fallback=conf.getint("scheduler", "dag_dir_list_interval"),
     )
-    last_refresh = datetime(2000, 1, 1)
+    last_refresh = datetime.utcnow() - timedelta(seconds=refresh_interval)
     nodes = []
     edges = []
 
@@ -34,13 +36,14 @@ class DAGDependenciesView(BaseView):
     def list(self):
         title = "DAG Dependencies"
 
-        if DAGDependenciesView.dagbag is None:
-            DAGDependenciesView.dagbag = models.DagBag(settings.DAGS_FOLDER)
+        if self.dagbag is None:
+            from airflow.www.views import dagbag
+
+            self.dagbag = dagbag
 
         if datetime.utcnow() > self.last_refresh + timedelta(
             seconds=self.refresh_interval
         ):
-            DAGDependenciesView.dagbag.collect_dags()
             self.nodes, self.edges = self._generate_graph()
             self.last_refresh = datetime.utcnow()
 
@@ -55,44 +58,55 @@ class DAGDependenciesView(BaseView):
             height=request.args.get("height", "800"),
         )
 
-    @staticmethod
-    def _generate_graph():
+    def _generate_graph(self):
         nodes = {}
         edges = []
 
-        for dag_id, dag in DAGDependenciesView.dagbag.dags.items():
-            dag_node_id = "d--" + dag_id
+        for dag_id, dag in self.dagbag.dags.items():
+            dag_node_id = f"d--{dag_id}"
             nodes[dag_node_id] = DAGDependenciesView._node_dict(
                 dag_node_id, dag_id, "fill: rgb(232, 247, 228)"
             )
 
             for task in dag.tasks:
-                task_node_id = "t--" + dag_id + "--" + task.task_id
+                task_node_id = f"t--{dag_id}--{task.task_id}"
                 if isinstance(task, TriggerDagRunOperator):
                     nodes[task_node_id] = DAGDependenciesView._node_dict(
                         task_node_id, task.task_id, "fill: rgb(255, 239, 235)"
                     )
 
-                    edges.append({"u": dag_node_id, "v": task_node_id})
-                    edges.append({"u": task_node_id, "v": "d--" + task.trigger_dag_id})
+                    edges.extend(
+                        [
+                            {"u": dag_node_id, "v": task_node_id},
+                            {"u": task_node_id, "v": f"d--{task.trigger_dag_id}"},
+                        ]
+                    )
                 elif isinstance(task, ExternalTaskSensor):
                     nodes[task_node_id] = DAGDependenciesView._node_dict(
                         task_node_id, task.task_id, "fill: rgb(230, 241, 242)"
                     )
 
-                    edges.append({"u": task_node_id, "v": dag_node_id})
-                    edges.append({"u": "d--" + task.external_dag_id, "v": task_node_id})
+                    edges.extend(
+                        [
+                            {"u": task_node_id, "v": dag_node_id},
+                            {"u": f"d--{task.external_dag_id}", "v": task_node_id},
+                        ]
+                    )
 
             implicit = getattr(dag, "implicit_dependencies", None)
             if isinstance(implicit, list):
                 for dep in implicit:
-                    dep_node_id = "i--" + dag_id + "--" + dep
+                    dep_node_id = f"i--{dag_id}--{dep}"
                     nodes[dep_node_id] = DAGDependenciesView._node_dict(
                         dep_node_id, "implicit", "fill: gold"
                     )
 
-                    edges.append({"u": dep_node_id, "v": dag_node_id})
-                    edges.append({"u": "d--" + dep, "v": dep_node_id})
+                    edges.extend(
+                        [
+                            {"u": dep_node_id, "v": dag_node_id},
+                            {"u": f"d--{dep}", "v": dep_node_id},
+                        ]
+                    )
 
         return list(nodes.values()), edges
 
