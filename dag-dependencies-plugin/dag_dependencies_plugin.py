@@ -37,7 +37,7 @@ class DAGDependenciesView(BaseView):
         title = "DAG Dependencies"
 
         if self.dagbag is None:
-            from airflow.www.views import dagbag
+            from airflow.www_rbac.views import dagbag
 
             self.dagbag = dagbag
 
