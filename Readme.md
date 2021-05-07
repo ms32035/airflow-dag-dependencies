@@ -1,5 +1,14 @@
 # Airflow DAG Dependencies
 
+**:warning: Deprecation notice :warning:**
+
+The functionality of this plugin is now part of Airflow - https://github.com/apache/airflow/pull/13199
+
+If you find any critical issues affecting Airflow 1.10.x, feel free
+to sumbit a PR, but no new features will be added here.
+
+## Functionality
+
 * Visualize dependencies between your Airflow DAGs
 * 3 types of dependencies supported:
   * Trigger - `TriggerDagRunOperator` in DAG A triggers DAG B
